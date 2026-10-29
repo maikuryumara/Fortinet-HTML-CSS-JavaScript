@@ -414,54 +414,39 @@ hud.querySelector("#rotate-button").addEventListener("click", event => {
   updatePreview();
 });
 
-// ========================================
-// 7. キーボード操作
-// ========================================
-const keys = {};
-let cameraYaw = 0;
-let cameraPitch = 0.15;
+
+/* ========================================
+   8. マウス操作（Mac Safari対応）
+======================================== */
+
 let looking = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
-window.addEventListener("keydown", event => {
-  keys[event.code] = true;
+renderer.domElement.style.cursor = "crosshair";
 
-  if (event.code === "Space") event.preventDefault();
-
-  if (event.code === "Digit1") selectPiece("wall");
-  if (event.code === "Digit2") selectPiece("floor");
-  if (event.code === "Digit3") selectPiece("ramp");
-
-  if (event.code === "KeyQ" || event.code === "KeyE") {
-    rotationSteps = (rotationSteps + 1) % 4;
-    updatePreview();
-  }
-});
-
-window.addEventListener("keyup", event => {
-  keys[event.code] = false;
-});
-
-// ========================================
-// 8. マウス操作
-// ========================================
 renderer.domElement.addEventListener("contextmenu", event => {
   event.preventDefault();
 });
 
+// マウスを押したら視点操作を開始
 renderer.domElement.addEventListener("pointerdown", event => {
   if (event.button === 2) {
     looking = true;
     lastMouseX = event.clientX;
     lastMouseY = event.clientY;
+    event.preventDefault();
   }
 });
 
+// ボタンを離したら終了
 window.addEventListener("pointerup", event => {
-  if (event.button === 2) looking = false;
+  if (event.button === 2) {
+    looking = false;
+  }
 });
 
+// 視点を回転
 window.addEventListener("pointermove", event => {
   if (!looking) return;
 
@@ -471,102 +456,16 @@ window.addEventListener("pointermove", event => {
   lastMouseX = event.clientX;
   lastMouseY = event.clientY;
 
-  cameraYaw -= dx * 0.006;
+  cameraYaw -= dx * 0.008;
+
   cameraPitch = THREE.MathUtils.clamp(
-    cameraPitch + dy * 0.003,
-    -0.05,
-    0.8
+    cameraPitch + dy * 0.005,
+    -0.3,
+    0.9
   );
 });
 
-// 画面左クリックは window で受け取る。
-// HUDのボタン操作は建築として処理しない。
-window.addEventListener("pointerdown", event => {
-  if (event.button !== 0) return;
 
-  if (event.target.closest && event.target.closest(".toolbar")) {
-    return;
-  }
-
-  placePiece();
-});
-
-// ========================================
-// 9. 移動・ジャンプ・カメラ
-// ========================================
-const clock = new THREE.Clock();
-let playerY = 0;
-let jumpVelocity = 0;
-let grounded = true;
-
-function animate() {
-  requestAnimationFrame(animate);
-
-  const dt = Math.min(clock.getDelta(), 0.04);
-
-  const forward = new THREE.Vector3(
-    -Math.sin(cameraYaw), 0, -Math.cos(cameraYaw)
-  );
-  const right = new THREE.Vector3(
-    Math.cos(cameraYaw), 0, -Math.sin(cameraYaw)
-  );
-
-  const move = new THREE.Vector3();
-
-  if (keys.KeyW) move.add(forward);
-  if (keys.KeyS) move.sub(forward);
-  if (keys.KeyD) move.add(right);
-  if (keys.KeyA) move.sub(right);
-
-  if (move.lengthSq() > 0) {
-    move.normalize();
-    player.position.addScaledVector(move, 7 * dt);
-    player.rotation.y = Math.atan2(-move.x, -move.z);
-
-    const swing = Math.sin(performance.now() * 0.012) * 0.45;
-    leftLeg.rotation.x = swing;
-    rightLeg.rotation.x = -swing;
-    leftArm.rotation.x = -swing * 0.7;
-    rightArm.rotation.x = swing * 0.7;
-  } else {
-    leftLeg.rotation.x = THREE.MathUtils.damp(leftLeg.rotation.x, 0, 8, dt);
-    rightLeg.rotation.x = THREE.MathUtils.damp(rightLeg.rotation.x, 0, 8, dt);
-    leftArm.rotation.x = THREE.MathUtils.damp(leftArm.rotation.x, 0, 8, dt);
-    rightArm.rotation.x = THREE.MathUtils.damp(rightArm.rotation.x, 0, 8, dt);
-  }
-
-  if (keys.Space && grounded) {
-    jumpVelocity = 8;
-    grounded = false;
-  }
-
-  jumpVelocity -= 20 * dt;
-  playerY += jumpVelocity * dt;
-
-  if (playerY <= 0) {
-    playerY = 0;
-    jumpVelocity = 0;
-    grounded = true;
-  }
-
-  player.position.y = playerY;
-
-  const target = player.position.clone();
-  target.y += 1.8;
-
-  const distance = 8;
-  const horizontal = Math.cos(cameraPitch) * distance;
-
-  camera.position.set(
-    target.x + Math.sin(cameraYaw) * horizontal,
-    target.y + 2.2 + Math.sin(cameraPitch) * distance,
-    target.z + Math.cos(cameraYaw) * horizontal
-  );
-
-  camera.lookAt(target);
-  updatePreview();
-  renderer.render(scene, camera);
-}
 
 // ========================================
 // 10. リサイズ・起動
