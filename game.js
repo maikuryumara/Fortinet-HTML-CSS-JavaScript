@@ -507,12 +507,24 @@ renderer.domElement.addEventListener("pointerdown", event => {
     lastMouseY = event.clientY;
   }
 
-  // 左クリックで建築。HUDのボタンを押した場合は除外。
   if (event.button === 0) {
+    // クリックが届いたか画面に表示する
+    const status = document.querySelector("#game-hud .status");
+
+    if (status) {
+      status.textContent = "クリック検出！ 建築中...";
+      status.style.background = "#087eae";
+    }
+
     placePiece();
+
+    // 建築数を確認する
+    if (status) {
+      status.textContent =
+        "クリック検出！ 建築数：" + placedPieces.length;
+    }
   }
 });
-
 window.addEventListener("pointerup", event => {
   if (event.button === 2) looking = false;
 });
