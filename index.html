@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fort Build - 3D 建築ゲーム</title>
+  <link rel="stylesheet" href="./style.css">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="game"></div>
+
+  <header class="topbar">
+    <div class="brand">FORT <span>BUILD</span></div>
+    <div class="status">CREATIVE MODE</div>
+  </header>
+
+  <section class="build-panel">
+    <div class="panel-title">建築メニュー</div>
+    <button class="build-button active" data-piece="wall">
+      <span class="piece-icon">▥</span>
+      <span>壁 <small>1</small></span>
+    </button>
+    <button class="build-button" data-piece="floor">
+      <span class="piece-icon">▦</span>
+      <span>床 <small>2</small></span>
+    </button>
+    <button class="build-button" data-piece="ramp">
+      <span class="piece-icon">◩</span>
+      <span>階段 <small>3</small></span>
+    </button>
+    <div class="panel-hint">Q：回転</div>
+    <div class="panel-hint">クリック：建築</div>
+  </section>
+
+  <div class="crosshair">+</div>
+
+  <section class="bottom-panel">
+    <div class="mode-label">BUILD MODE</div>
+    <button id="mode-button">建築モード：ON</button>
+    <div id="message">建築物を選択して地面をクリック</div>
+  </section>
+
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
