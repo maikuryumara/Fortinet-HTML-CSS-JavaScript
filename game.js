@@ -1,9 +1,9 @@
 
 import * as THREE from "three";
 
-// ========================================
-// 1. シーン
-// ========================================
+// ======================================
+// 1. シーン・カメラ・レンダラー
+// ======================================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x91c9f2);
 scene.fog = new THREE.Fog(0x91c9f2, 70, 180);
@@ -21,67 +21,56 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
+Object.assign(renderer.domElement.style, {
+  position: "fixed",
+  inset: "0",
+  width: "100%",
+  height: "100%",
+  zIndex: "0",
+  display: "block",
+  touchAction: "none"
+});
+
 document.body.style.margin = "0";
 document.body.style.overflow = "hidden";
-document.body.style.background = "#91c9f2";
 document.body.appendChild(renderer.domElement);
 
-renderer.domElement.style.position = "fixed";
-renderer.domElement.style.inset = "0";
-renderer.domElement.style.width = "100%";
-renderer.domElement.style.height = "100%";
-renderer.domElement.style.display = "block";
-renderer.domElement.style.zIndex = "0";
-renderer.domElement.style.touchAction = "none";
+// ======================================
+// 2. ライティング・地面
+// ======================================
+scene.add(new THREE.HemisphereLight(0xffffff, 0x58694a, 2));
 
-// ========================================
-// 2. ライトと地面
-// ========================================
-scene.add(new THREE.HemisphereLight(0xeaf6ff, 0x526342, 2.2));
-
-const sun = new THREE.DirectionalLight(0xffffff, 3);
-sun.position.set(-20, 35, 15);
+const sun = new THREE.DirectionalLight(0xffffff, 2.5);
+sun.position.set(-20, 40, 20);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 scene.add(sun);
 
 const ground = new THREE.Mesh(
   new THREE.PlaneGeometry(200, 200),
-  new THREE.MeshStandardMaterial({
-    color: 0x568d47,
-    roughness: 1
-  })
+  new THREE.MeshStandardMaterial({ color: 0x568b47 })
 );
 ground.rotation.x = -Math.PI / 2;
-ground.position.y = -0.05;
+ground.position.y = -0.1;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const grid = new THREE.GridHelper(200, 100, 0x294c2b, 0x477544);
-grid.position.y = 0;
+const grid = new THREE.GridHelper(200, 100, 0x315b35, 0x477744);
+grid.position.y = -0.08;
 scene.add(grid);
 
-// ========================================
-// 3. キャラクター用素材
-// ========================================
-function material(color, options = {}) {
+// ======================================
+// 3. キャラクター
+// ======================================
+function makeMaterial(color, extra = {}) {
   return new THREE.MeshStandardMaterial({
     color,
-    roughness: 0.75,
-    ...options
+    roughness: 0.8,
+    ...extra
   });
 }
 
-const skin = material(0xe8b18b);
-const hair = material(0x30221d);
-const shirt = material(0x10a8ce);
-const shirtDark = material(0x08728f);
-const pants = material(0x28334c);
-const shoes = material(0x20232a);
-const white = material(0xf5f5f5);
-const gold = material(0xffc857);
-
-function addBox(parent, size, position, mat) {
+function box(parent, size, position, mat) {
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(...size),
     mat
@@ -93,125 +82,117 @@ function addBox(parent, size, position, mat) {
   return mesh;
 }
 
-function addSphere(parent, radius, position, mat) {
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(radius, 20, 16),
-    mat
-  );
-  mesh.position.set(...position);
-  mesh.castShadow = true;
-  parent.add(mesh);
-  return mesh;
-}
-
-// ========================================
-// 4. キャラクター
-// ========================================
 const player = new THREE.Group();
 scene.add(player);
 
-addBox(player, [0.9, 1.0, 0.48], [0, 1.65, 0], shirt);
-addBox(player, [0.92, 0.13, 0.5], [0, 1.13, 0], shirtDark);
-addBox(player, [0.16, 0.65, 0.035], [0, 1.65, -0.25], gold);
+const skin = makeMaterial(0xe7b18a);
+const hair = makeMaterial(0x35251d);
+const shirt = makeMaterial(0x08a9d2);
+const darkShirt = makeMaterial(0x08748f);
+const pants = makeMaterial(0x29334c);
+const shoes = makeMaterial(0x20242b);
+const white = makeMaterial(0xffffff);
 
-addBox(player, [0.25, 0.22, 0.25], [0, 2.22, 0], skin);
-addSphere(player, 0.39, [0, 2.62, 0], skin);
-addSphere(player, 0.405, [0, 2.81, 0.015], hair);
-addBox(player, [0.67, 0.2, 0.64], [0, 2.78, 0], hair);
+box(player, [0.9, 0.95, 0.45], [0, 1.65, 0], shirt);
+box(player, [0.92, 0.12, 0.47], [0, 1.14, 0], darkShirt);
+box(player, [0.24, 0.18, 0.25], [0, 2.2, 0], skin);
 
-addBox(player, [0.48, 0.12, 0.045], [0, 2.66, -0.35], skin);
-addBox(player, [0.12, 0.055, 0.035], [-0.13, 2.68, -0.379], white);
-addBox(player, [0.12, 0.055, 0.035], [0.13, 2.68, -0.379], white);
-addBox(player, [0.05, 0.05, 0.025], [-0.13, 2.68, -0.402], hair);
-addBox(player, [0.05, 0.05, 0.025], [0.13, 2.68, -0.402], hair);
+const head = new THREE.Mesh(
+  new THREE.SphereGeometry(0.38, 20, 16),
+  skin
+);
+head.position.set(0, 2.58, 0);
+head.castShadow = true;
+player.add(head);
+
+box(player, [0.67, 0.2, 0.62], [0, 2.76, 0.02], hair);
+box(player, [0.12, 0.06, 0.035], [-0.13, 2.63, -0.35], white);
+box(player, [0.12, 0.06, 0.035], [0.13, 2.63, -0.35], white);
 
 const leftArm = new THREE.Group();
-leftArm.position.set(-0.57, 2.0, 0);
+leftArm.position.set(-0.56, 1.98, 0);
 player.add(leftArm);
-addBox(leftArm, [0.25, 0.72, 0.3], [0, -0.31, 0], shirt);
-addSphere(leftArm, 0.15, [0, -0.72, 0], skin);
+box(leftArm, [0.24, 0.68, 0.29], [0, -0.3, 0], shirt);
+box(leftArm, [0.22, 0.2, 0.24], [0, -0.68, 0], skin);
 
 const rightArm = new THREE.Group();
-rightArm.position.set(0.57, 2.0, 0);
+rightArm.position.set(0.56, 1.98, 0);
 player.add(rightArm);
-addBox(rightArm, [0.25, 0.72, 0.3], [0, -0.31, 0], shirt);
-addSphere(rightArm, 0.15, [0, -0.72, 0], skin);
+box(rightArm, [0.24, 0.68, 0.29], [0, -0.3, 0], shirt);
+box(rightArm, [0.22, 0.2, 0.24], [0, -0.68, 0], skin);
 
 const leftLeg = new THREE.Group();
-leftLeg.position.set(-0.24, 1.05, 0);
+leftLeg.position.set(-0.23, 1.08, 0);
 player.add(leftLeg);
-addBox(leftLeg, [0.34, 0.78, 0.36], [0, -0.35, 0], pants);
-addBox(leftLeg, [0.38, 0.2, 0.5], [0, -0.78, -0.06], shoes);
+box(leftLeg, [0.34, 0.76, 0.34], [0, -0.34, 0], pants);
+box(leftLeg, [0.38, 0.2, 0.47], [0, -0.77, -0.05], shoes);
 
 const rightLeg = new THREE.Group();
-rightLeg.position.set(0.24, 1.05, 0);
+rightLeg.position.set(0.23, 1.08, 0);
 player.add(rightLeg);
-addBox(rightLeg, [0.34, 0.78, 0.36], [0, -0.35, 0], pants);
-addBox(rightLeg, [0.38, 0.2, 0.5], [0, -0.78, -0.06], shoes);
+box(rightLeg, [0.34, 0.76, 0.34], [0, -0.34, 0], pants);
+box(rightLeg, [0.38, 0.2, 0.47], [0, -0.77, -0.05], shoes);
 
-// ========================================
-// 5. 建築パーツ
-// ========================================
-const BUILD_SIZE = 4;
+// ======================================
+// 4. 建築
+// ======================================
 const placedPieces = [];
-
-const pieceMaterials = {
-  wall: material(0x48b8eb),
-  floor: material(0xd4b17b),
-  ramp: material(0x62c88a)
-};
-
-const ghostMaterials = {
-  wall: material(0x62dcff, {
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false
-  }),
-  floor: material(0xffd078, {
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false
-  }),
-  ramp: material(0x72ffad, {
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false
-  })
-};
-
+const BUILD_SIZE = 4;
 let selectedPiece = "wall";
 let rotationSteps = 0;
 let preview = null;
 
-function createPiece(type, mat, ghost = false) {
+const buildMaterials = {
+  wall: makeMaterial(0x45b8e8),
+  floor: makeMaterial(0xd7b77d),
+  ramp: makeMaterial(0x65c987)
+};
+
+const ghostMaterials = {
+  wall: makeMaterial(0x63dcff, {
+    transparent: true,
+    opacity: 0.45,
+    depthWrite: false
+  }),
+  floor: makeMaterial(0xffd078, {
+    transparent: true,
+    opacity: 0.45,
+    depthWrite: false
+  }),
+  ramp: makeMaterial(0x72ffad, {
+    transparent: true,
+    opacity: 0.45,
+    depthWrite: false
+  })
+};
+
+function createPiece(type, ghost = false) {
   const group = new THREE.Group();
-  const trim = ghost ? mat : material(0x31495a);
+  const mat = ghost ? ghostMaterials[type] : buildMaterials[type];
+  const trim = makeMaterial(0x344b5b);
 
   if (type === "wall") {
-    addBox(group, [4, 3, 0.22], [0, 1.5, 0], mat);
-
+    box(group, [4, 3, 0.2], [0, 1.5, 0], mat);
     if (!ghost) {
-      addBox(group, [4, 0.12, 0.28], [0, 0.08, 0], trim);
       for (let x = -1.5; x <= 1.5; x += 1) {
-        addBox(group, [0.055, 2.8, 0.25], [x, 1.5, 0], trim);
+        box(group, [0.06, 2.9, 0.23], [x, 1.5, 0], trim);
       }
     }
   }
 
   if (type === "floor") {
-    addBox(group, [4, 0.18, 4], [0, 0, 0], mat);
-
+    box(group, [4, 0.18, 4], [0, 0, 0], mat);
     if (!ghost) {
-      addBox(group, [4, 0.1, 0.1], [0, -0.08, -1.9], trim);
-      addBox(group, [4, 0.1, 0.1], [0, -0.08, 1.9], trim);
-      addBox(group, [0.1, 0.1, 4], [-1.9, -0.08, 0], trim);
-      addBox(group, [0.1, 0.1, 4], [1.9, -0.08, 0], trim);
+      box(group, [4, 0.1, 0.1], [0, -0.08, -1.9], trim);
+      box(group, [4, 0.1, 0.1], [0, -0.08, 1.9], trim);
+      box(group, [0.1, 0.1, 4], [-1.9, -0.08, 0], trim);
+      box(group, [0.1, 0.1, 4], [1.9, -0.08, 0], trim);
     }
   }
 
   if (type === "ramp") {
     for (let i = 0; i < 5; i++) {
-      addBox(
+      box(
         group,
         [4, 0.25, 0.8],
         [0, 0.25 + i * 0.5, 1.6 - i * 0.8],
@@ -225,13 +206,7 @@ function createPiece(type, mat, ghost = false) {
 
 function rebuildPreview() {
   if (preview) scene.remove(preview);
-
-  preview = createPiece(
-    selectedPiece,
-    ghostMaterials[selectedPiece],
-    true
-  );
-
+  preview = createPiece(selectedPiece, true);
   scene.add(preview);
 }
 
@@ -239,95 +214,88 @@ function snap(value) {
   return Math.round(value / BUILD_SIZE) * BUILD_SIZE;
 }
 
-function getBuildPosition() {
-  const forwardX = -Math.sin(player.rotation.y);
-  const forwardZ = -Math.cos(player.rotation.y);
+function buildPosition() {
+  const fx = -Math.sin(player.rotation.y);
+  const fz = -Math.cos(player.rotation.y);
 
-  const x = snap(player.position.x + forwardX * BUILD_SIZE);
-  const z = snap(player.position.z + forwardZ * BUILD_SIZE);
+  const x = snap(player.position.x + fx * BUILD_SIZE);
+  const z = snap(player.position.z + fz * BUILD_SIZE);
 
-  // 建築を地面から始める。建築物の上面も高さ判定する。
-  const ray = new THREE.Raycaster();
-  ray.set(
+  let baseY = 0;
+
+  // 地面と既存建築物の上面を調べる
+  const ray = new THREE.Raycaster(
     new THREE.Vector3(x, 80, z),
     new THREE.Vector3(0, -1, 0)
   );
 
-  const targets = [ground];
-
+  const meshes = [ground];
   for (const piece of placedPieces) {
     piece.traverse(object => {
-      if (object.isMesh) targets.push(object);
+      if (object.isMesh) meshes.push(object);
     });
   }
 
-  const hits = ray.intersectObjects(targets, false);
-  let y = 0;
+  const hits = ray.intersectObjects(meshes, false);
 
   for (const hit of hits) {
     if (!hit.face) continue;
-
     const normal = hit.face.normal.clone()
       .transformDirection(hit.object.matrixWorld);
 
     if (normal.y > 0.7) {
-      y = Math.max(0, hit.point.y);
+      baseY = Math.max(0, hit.point.y);
       break;
     }
   }
 
-  if (selectedPiece === "wall") y += 1.5;
-  if (selectedPiece === "floor") y += 0.09;
-  if (selectedPiece === "ramp") y += 0.25;
+  if (selectedPiece === "wall") baseY += 1.5;
+  if (selectedPiece === "floor") baseY += 0.09;
+  if (selectedPiece === "ramp") baseY += 0.25;
 
-  return new THREE.Vector3(x, y, z);
+  return new THREE.Vector3(x, baseY, z);
 }
 
 function updatePreview() {
   if (!preview) return;
-  preview.position.copy(getBuildPosition());
-  preview.rotation.set(0, rotationSteps * Math.PI / 2, 0);
-  preview.visible = true;
+  preview.position.copy(buildPosition());
+  preview.rotation.y = rotationSteps * Math.PI / 2;
 }
 
 function placePiece() {
-  const piece = createPiece(
-    selectedPiece,
-    pieceMaterials[selectedPiece]
-  );
-
-  piece.position.copy(getBuildPosition());
-  piece.rotation.set(0, rotationSteps * Math.PI / 2, 0);
+  const piece = createPiece(selectedPiece);
+  piece.position.copy(buildPosition());
+  piece.rotation.y = rotationSteps * Math.PI / 2;
 
   scene.add(piece);
   placedPieces.push(piece);
 
-  updateStatus("建築数：" + placedPieces.length);
-  updatePreview();
+  updateStatus(`建築数：${placedPieces.length}`);
 }
 
-// ========================================
-// 6. 操作UI
-// ========================================
+// ======================================
+// 5. HUD
+// ======================================
 const hud = document.createElement("div");
+
 hud.innerHTML = `
-  <div class="title">BUILD ZONE <span>CREATIVE</span></div>
-  <div class="help">
+  <div class="game-title">BUILD ZONE <small>CREATIVE</small></div>
+  <div class="game-help">
     <b>W A S D</b> 移動<br>
     <b>SPACE</b> ジャンプ<br>
-    <b>右ドラッグ</b> 視点操作<br>
+    <b>マウスドラッグ</b> カメラ<br>
     <b>1 / 2 / 3</b> 壁・床・階段<br>
     <b>Q / E</b> 回転<br>
     <b>左クリック</b> 建築
   </div>
-  <div class="crosshair">+</div>
-  <div class="toolbar">
+  <div class="game-crosshair">+</div>
+  <div class="game-toolbar">
     <button data-piece="wall">1 壁</button>
     <button data-piece="floor">2 床</button>
     <button data-piece="ramp">3 階段</button>
     <button id="rotate-button">回転</button>
   </div>
-  <div class="status">準備完了</div>
+  <div class="game-status">準備完了</div>
 `;
 
 Object.assign(hud.style, {
@@ -339,49 +307,51 @@ Object.assign(hud.style, {
   fontFamily: "Arial, sans-serif",
   textShadow: "0 2px 4px #17202b"
 });
+
 document.body.appendChild(hud);
 
-const uiStyle = document.createElement("style");
-uiStyle.textContent = `
-  .title {
+const style = document.createElement("style");
+style.textContent = `
+  .game-title {
     position: absolute; top: 18px; left: 22px;
     font-size: 22px; font-weight: 900; letter-spacing: 2px;
   }
-  .title span { color: #62e5ff; font-size: 11px; }
-  .help {
-    position: absolute; top: 60px; left: 22px;
+  .game-title small { color: #62e5ff; font-size: 11px; }
+  .game-help {
+    position: absolute; top: 58px; left: 22px;
     padding: 12px 16px; border-radius: 10px;
-    background: #101c2bd9; line-height: 1.8; font-size: 13px;
+    background: #101c2bdd; line-height: 1.8; font-size: 13px;
   }
-  .crosshair {
-    position: absolute; left: 50%; top: 50%;
+  .game-crosshair {
+    position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%); font-size: 28px;
   }
-  .toolbar {
+  .game-toolbar {
     position: absolute; bottom: 24px; left: 50%;
     transform: translateX(-50%);
-    display: flex; flex-wrap: wrap; justify-content: center;
-    gap: 8px; width: max-content; max-width: 96vw;
+    display: flex; gap: 8px; flex-wrap: wrap;
+    justify-content: center; max-width: 96vw;
     pointer-events: auto;
   }
-  .toolbar button {
-    padding: 12px 16px; border: 1px solid #ffffff88;
-    border-radius: 9px; background: #172537ee;
-    color: white; font-weight: bold; cursor: pointer;
+  .game-toolbar button {
+    border: 1px solid #ffffff88; border-radius: 9px;
+    background: #172537ee; color: white;
+    padding: 12px 16px; font-weight: bold; cursor: pointer;
   }
-  .toolbar button.active {
+  .game-toolbar button.active {
     background: #087eae; border-color: #7ce7ff;
   }
-  .status {
-    position: absolute; top: 22px; right: 22px;
+  .game-status {
+    position: absolute; top: 20px; right: 20px;
     padding: 10px 14px; background: #101c2bdd;
     border-radius: 8px; font-weight: bold;
   }
 `;
-document.head.appendChild(uiStyle);
+document.head.appendChild(style);
 
 function updateStatus(message) {
-  hud.querySelector(".status").textContent = message;
+  const status = hud.querySelector(".game-status");
+  if (status) status.textContent = message;
 }
 
 function refreshButtons() {
@@ -398,7 +368,7 @@ function selectPiece(type) {
   rebuildPreview();
   refreshButtons();
   updatePreview();
-  updateStatus("選択中：" + type);
+  updateStatus(`選択中：${type}`);
 }
 
 hud.querySelectorAll("[data-piece]").forEach(button => {
@@ -414,39 +384,59 @@ hud.querySelector("#rotate-button").addEventListener("click", event => {
   updatePreview();
 });
 
-
-/* ========================================
-   8. マウス操作（Mac Safari対応）
-======================================== */
+// ======================================
+// 6. 入力変数
+// ※ cameraYaw はここで一度だけ定義
+// ======================================
+const keys = Object.create(null);
+let cameraYaw = 0;
+let cameraPitch = 0.15;
 
 let looking = false;
 let lastMouseX = 0;
 let lastMouseY = 0;
 
-renderer.domElement.style.cursor = "crosshair";
+window.addEventListener("keydown", event => {
+  keys[event.code] = true;
 
+  if (event.code === "Space") event.preventDefault();
+
+  if (event.code === "Digit1") selectPiece("wall");
+  if (event.code === "Digit2") selectPiece("floor");
+  if (event.code === "Digit3") selectPiece("ramp");
+
+  if (event.code === "KeyQ" || event.code === "KeyE") {
+    rotationSteps = (rotationSteps + 1) % 4;
+    updatePreview();
+  }
+});
+
+window.addEventListener("keyup", event => {
+  keys[event.code] = false;
+});
+
+window.addEventListener("blur", () => {
+  for (const key in keys) keys[key] = false;
+  looking = false;
+});
+
+// マウスを押しながら動かすと視点が回る
 renderer.domElement.addEventListener("contextmenu", event => {
   event.preventDefault();
 });
 
-// マウスを押したら視点操作を開始
 renderer.domElement.addEventListener("pointerdown", event => {
-  if (event.button === 2) {
+  if (event.button === 2 || event.button === 0) {
     looking = true;
     lastMouseX = event.clientX;
     lastMouseY = event.clientY;
-    event.preventDefault();
   }
 });
 
-// ボタンを離したら終了
-window.addEventListener("pointerup", event => {
-  if (event.button === 2) {
-    looking = false;
-  }
+window.addEventListener("pointerup", () => {
+  looking = false;
 });
 
-// 視点を回転
 window.addEventListener("pointermove", event => {
   if (!looking) return;
 
@@ -457,7 +447,6 @@ window.addEventListener("pointermove", event => {
   lastMouseY = event.clientY;
 
   cameraYaw -= dx * 0.008;
-
   cameraPitch = THREE.MathUtils.clamp(
     cameraPitch + dy * 0.005,
     -0.3,
@@ -465,20 +454,112 @@ window.addEventListener("pointermove", event => {
   );
 });
 
+// 左クリックで建築。ただしツールバー上では建築しない
+window.addEventListener("pointerdown", event => {
+  if (event.button !== 0) return;
 
+  if (event.target.closest?.(".game-toolbar")) return;
 
-// ========================================
-// 10. リサイズ・起動
-// ========================================
+  placePiece();
+});
+
+// ======================================
+// 7. 移動・ジャンプ
+// ======================================
+const clock = new THREE.Clock();
+let playerY = 0;
+let jumpVelocity = 0;
+let grounded = true;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.04);
+
+  const forward = new THREE.Vector3(
+    -Math.sin(cameraYaw), 0, -Math.cos(cameraYaw)
+  );
+  const right = new THREE.Vector3(
+    Math.cos(cameraYaw), 0, -Math.sin(cameraYaw)
+  );
+
+  const move = new THREE.Vector3();
+
+  if (keys.KeyW) move.add(forward);
+  if (keys.KeyS) move.sub(forward);
+  if (keys.KeyD) move.add(right);
+  if (keys.KeyA) move.sub(right);
+
+  if (move.lengthSq() > 0) {
+    move.normalize();
+    player.position.addScaledVector(move, 7 * dt);
+
+    // キャラクターの正面を移動方向へ向ける
+    player.rotation.y = Math.atan2(-move.x, -move.z);
+
+    const swing = Math.sin(performance.now() * 0.012) * 0.4;
+    leftLeg.rotation.x = swing;
+    rightLeg.rotation.x = -swing;
+    leftArm.rotation.x = -swing * 0.7;
+    rightArm.rotation.x = swing * 0.7;
+  } else {
+    leftLeg.rotation.x = THREE.MathUtils.damp(leftLeg.rotation.x, 0, 8, dt);
+    rightLeg.rotation.x = THREE.MathUtils.damp(rightLeg.rotation.x, 0, 8, dt);
+    leftArm.rotation.x = THREE.MathUtils.damp(leftArm.rotation.x, 0, 8, dt);
+    rightArm.rotation.x = THREE.MathUtils.damp(rightArm.rotation.x, 0, 8, dt);
+  }
+
+  if (keys.Space && grounded) {
+    jumpVelocity = 8;
+    grounded = false;
+  }
+
+  jumpVelocity -= 20 * dt;
+  playerY += jumpVelocity * dt;
+
+  if (playerY <= 0) {
+    playerY = 0;
+    jumpVelocity = 0;
+    grounded = true;
+  }
+
+  player.position.y = playerY;
+
+  // カメラをキャラクターの後ろに配置
+  const target = player.position.clone();
+  target.y += 1.8;
+
+  const distance = 8;
+  const horizontal = Math.cos(cameraPitch) * distance;
+
+  camera.position.set(
+    target.x + Math.sin(cameraYaw) * horizontal,
+    target.y + 2.2 + Math.sin(cameraPitch) * distance,
+    target.z + Math.cos(cameraYaw) * horizontal
+  );
+
+  camera.lookAt(target);
+
+  updatePreview();
+  renderer.render(scene, camera);
+}
+
+// ======================================
+// 8. ウィンドウサイズ変更
+// ======================================
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// ======================================
+// 9. 起動
+// ======================================
 rebuildPreview();
 refreshButtons();
 updatePreview();
+updateStatus("ゲーム起動完了");
 animate();
 
-console.log("Build Zone started");
+console.log("Build Zone started successfully");
