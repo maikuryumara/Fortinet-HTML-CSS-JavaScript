@@ -239,26 +239,102 @@ function makePreview() {
 makePreview();
 
 // ---------- 建築位置 ----------
+
+/* ---------- 建築位置・積み上げ対応 ---------- */
+
+const buildRaycaster = new THREE.Raycaster();
+const screenCenter = new THREE.Vector2(0, 0);
+let currentBuildSurfaceY = 0;
+
 function snap(value) {
   return Math.round(value / BUILD_SIZE) * BUILD_SIZE;
 }
 
 function updatePreview() {
-  // キャラクターの前方に設置位置を作るため、照準が地面に
-  // 当たらなくても建築できる。
-  const forwardX = -Math.sin(player.rotation.y);
-  const forwardZ = -Math.cos(player.rotation.y);
-  const distance = 4.5;
+  // 画面中央からレイを飛ばす
+  buildRaycaster.setFromCamera(screenCenter, camera);
 
-  const x = snap(player.position.x + forwardX * distance);
-  const z = snap(player.position.z + forwardZ * distance);
+  // 地面と既存の建築物を対象にする
+  const targets = [ground];
 
-  preview.position.set(x, 0, z);
+  for (const piece of buildPieces) {
+    piece.traverse(object => {
+      if (object.isMesh) targets.push(object);
+    });
+  }
+
+  const hits = buildRaycaster.intersectObjects(targets, false);
+
+  let x;
+  let z;
+  let surfaceY = 0;
+
+  // 上面に当たった場合、その上に建築できる
+  const topHit = hits.find(hit => {
+    if (!hit.face) return false;
+
+    const normal = hit.face.normal.clone()
+      .transformDirection(hit.object.matrixWorld);
+
+    return normal.y > 0.65;
+  });
+
+  if (topHit) {
+    x = snap(topHit.point.x);
+    z = snap(topHit.point.z);
+    surfaceY = topHit.point.y;
+  } else {
+    // 照準が何にも当たらない場合は前方に置く
+    const forwardX = -Math.sin(player.rotation.y);
+    const forwardZ = -Math.cos(player.rotation.y);
+
+    x = snap(player.position.x + forwardX * BUILD_SIZE);
+    z = snap(player.position.z + forwardZ * BUILD_SIZE);
+    surfaceY = 0;
+  }
+
+  currentBuildSurfaceY = surfaceY;
+
+  preview.position.set(x, surfaceY, z);
   preview.rotation.set(0, rotationSteps * Math.PI / 2, 0);
 
-  // 建築プレビューがプレイヤーに重なっていないか目で確認できる
+  // 床は厚みの半分だけ上げる
+  if (selectedPiece === "floor") {
+    preview.position.y += 0.09;
+  }
+
+  // 壁は設置面から上に伸ばす
+  if (selectedPiece === "wall") {
+    preview.position.y += 1.5;
+  }
+
+  // 階段の土台を設置面より少し上げる
+  if (selectedPiece === "ramp") {
+    preview.position.y += 0.75;
+  }
+
   preview.visible = true;
 }
+
+function placePiece() {
+  if (!preview || !preview.visible) return;
+
+  const piece = createPiece(
+    selectedPiece,
+    buildMaterials[selectedPiece]
+  );
+
+  // プレビューと同じ場所・向きに配置する
+  piece.position.copy(preview.position);
+  piece.rotation.copy(preview.rotation);
+
+  scene.add(piece);
+  buildPieces.push(piece);
+
+  // 新しい建築物も次の建築位置の判定対象になる
+  updatePreview();
+}
+
 
 function placePiece() {
   const piece = createPiece(selectedPiece, buildMaterials[selectedPiece]);
