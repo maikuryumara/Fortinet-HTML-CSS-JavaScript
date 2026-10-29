@@ -1,703 +1,525 @@
 
 import * as THREE from "three";
 
-// ==========================================
-// 1. シーン・カメラ・レンダラー
-// ==========================================
-const container = document.querySelector("#game");
-const message = document.querySelector("#message");
-const modeButton = document.querySelector("#mode-button");
-
+// ---------- 基本設定 ----------
 const scene = new THREE.Scene();
-scene.background = new THREE.Color("#91c9ee");
-scene.fog = new THREE.Fog("#91c9ee", 40, 110);
+scene.background = new THREE.Color(0x9bc9ef);
+scene.fog = new THREE.Fog(0x9bc9ef, 45, 120);
 
 const camera = new THREE.PerspectiveCamera(
-  65,
+  70,
   window.innerWidth / window.innerHeight,
   0.1,
-  200
+  300
 );
 
-const renderer = new THREE.WebGLRenderer({
-  antialias: true
-});
-
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-container.appendChild(renderer.domElement);
+document.body.style.margin = "0";
+document.body.style.overflow = "hidden";
+document.body.appendChild(renderer.domElement);
 
-// ==========================================
-// 2. ライティング
-// ==========================================
-scene.add(
-  new THREE.HemisphereLight("#e9f5ff", "#65734a", 2)
-);
+// ---------- ライト ----------
+scene.add(new THREE.HemisphereLight(0xe4f4ff, 0x526342, 2.1));
 
-const sunlight = new THREE.DirectionalLight("#fff2d6", 2.5);
-sunlight.position.set(-10, 20, 10);
-sunlight.castShadow = true;
-sunlight.shadow.mapSize.set(1024, 1024);
-scene.add(sunlight);
+const sun = new THREE.DirectionalLight(0xffffff, 3);
+sun.position.set(-15, 28, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+scene.add(sun);
 
-// ==========================================
-// 3. 地面
-// ==========================================
+// ---------- 地面 ----------
 const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(100, 100),
+  new THREE.PlaneGeometry(200, 200),
   new THREE.MeshStandardMaterial({
-    color: "#70bd62",
+    color: 0x568b48,
     roughness: 1
   })
 );
-
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const grid = new THREE.GridHelper(
-  100,
-  50,
-  "#dff6d4",
-  "#9bc98e"
-);
-
-grid.position.y = 0.02;
+const grid = new THREE.GridHelper(200, 100, 0x294d2b, 0x477343);
+grid.position.y = 0.015;
 scene.add(grid);
 
-// ==========================================
-// 4. プレイヤー設定
-// ==========================================
-const player = {
-  position: new THREE.Vector3(0, 0, 8),
-  velocityY: 0,
-  speed: 6,
-  jumpSpeed: 8,
-  height: 1.8,
-  onGround: true,
-  radius: 0.38,
-  yaw: 0
-};
-
-const playerModel = new THREE.Group();
-scene.add(playerModel);
-
-// キャラクターのパーツを作る
-function addCharacterPart(
-  geometry,
-  color,
-  x,
-  y,
-  z,
-  parent = playerModel
-) {
-  const material = new THREE.MeshStandardMaterial({
-    color,
-    roughness: 0.8
-  });
-
-  const part = new THREE.Mesh(geometry, material);
-  part.position.set(x, y, z);
-  part.castShadow = true;
-  part.receiveShadow = true;
-  parent.add(part);
-
-  return part;
+// ---------- 補助関数 ----------
+function makeMaterial(color, roughness = 0.75) {
+  return new THREE.MeshStandardMaterial({ color, roughness });
 }
+
+function addBox(parent, size, position, material, options = {}) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(size[0], size[1], size[2]),
+    material
+  );
+  mesh.position.set(position[0], position[1], position[2]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  if (options.rotation) {
+    mesh.rotation.set(...options.rotation);
+  }
+  parent.add(mesh);
+  return mesh;
+}
+
+function addSphere(parent, radius, position, material) {
+  const mesh = new THREE.Mesh(
+    new THREE.SphereGeometry(radius, 20, 14),
+    material
+  );
+  mesh.position.set(...position);
+  mesh.castShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+// ---------- キャラクター ----------
+const player = new THREE.Group();
+scene.add(player);
+
+const skin = makeMaterial(0xe8ad83);
+const hair = makeMaterial(0x39251d);
+const jacket = makeMaterial(0x13a8c7);
+const jacketDark = makeMaterial(0x08718f);
+const pants = makeMaterial(0x26344d);
+const shoes = makeMaterial(0x20232b);
+const white = makeMaterial(0xf3f5f8);
+const accent = makeMaterial(0xffc857);
 
 // 胴体
-addCharacterPart(
-  new THREE.CapsuleGeometry(0.34, 0.65, 4, 8),
-  "#2469c8",
-  0,
-  1.12,
-  0
-);
+addBox(player, [0.9, 1.05, 0.48], [0, 1.65, 0], jacket);
 
-// 頭
-addCharacterPart(
-  new THREE.SphereGeometry(0.25, 16, 12),
-  "#edc49c",
-  0,
-  1.83,
-  0
-);
+// 胸のアクセント
+addBox(player, [0.18, 0.65, 0.035], [0, 1.68, -0.25], accent);
 
-// 髪
-addCharacterPart(
-  new THREE.SphereGeometry(0.255, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-  "#44352b",
-  0,
-  1.94,
-  0
-);
+// ベルト
+addBox(player, [0.92, 0.13, 0.5], [0, 1.13, 0], jacketDark);
 
-// 腕と脚は、動かせるようにグループ化
+// 首と頭
+addBox(player, [0.25, 0.22, 0.25], [0, 2.22, 0], skin);
+addSphere(player, 0.39, [0, 2.62, 0], skin);
+
+// 髪の上部
+addSphere(player, 0.405, [0, 2.81, 0.015], hair);
+addBox(player, [0.67, 0.2, 0.64], [0, 2.78, 0], hair);
+
+// 顔はキャラクターの前方（-Z）
+addBox(player, [0.48, 0.12, 0.045], [0, 2.66, -0.35], skin);
+addBox(player, [0.12, 0.055, 0.035], [-0.13, 2.68, -0.379], white);
+addBox(player, [0.12, 0.055, 0.035], [0.13, 2.68, -0.379], white);
+addBox(player, [0.055, 0.055, 0.025], [-0.13, 2.68, -0.402], hair);
+addBox(player, [0.055, 0.055, 0.025], [0.13, 2.68, -0.402], hair);
+addBox(player, [0.17, 0.045, 0.04], [0, 2.48, -0.365], hair);
+
+// 腕
 const leftArm = new THREE.Group();
-leftArm.position.set(-0.39, 1.42, 0);
-playerModel.add(leftArm);
-
-addCharacterPart(
-  new THREE.CapsuleGeometry(0.105, 0.48, 3, 6),
-  "#2469c8",
-  0,
-  -0.27,
-  0,
-  leftArm
-);
+leftArm.position.set(-0.57, 2.0, 0);
+player.add(leftArm);
+addBox(leftArm, [0.25, 0.72, 0.3], [0, -0.31, 0], jacket);
+addSphere(leftArm, 0.15, [0, -0.72, 0], skin);
 
 const rightArm = new THREE.Group();
-rightArm.position.set(0.39, 1.42, 0);
-playerModel.add(rightArm);
+rightArm.position.set(0.57, 2.0, 0);
+player.add(rightArm);
+addBox(rightArm, [0.25, 0.72, 0.3], [0, -0.31, 0], jacket);
+addSphere(rightArm, 0.15, [0, -0.72, 0], skin);
 
-addCharacterPart(
-  new THREE.CapsuleGeometry(0.105, 0.48, 3, 6),
-  "#2469c8",
-  0,
-  -0.27,
-  0,
-  rightArm
-);
-
+// 脚
 const leftLeg = new THREE.Group();
-leftLeg.position.set(-0.17, 0.65, 0);
-playerModel.add(leftLeg);
-
-addCharacterPart(
-  new THREE.CapsuleGeometry(0.13, 0.48, 3, 6),
-  "#25334c",
-  0,
-  -0.28,
-  0,
-  leftLeg
-);
+leftLeg.position.set(-0.24, 1.05, 0);
+player.add(leftLeg);
+addBox(leftLeg, [0.34, 0.78, 0.36], [0, -0.35, 0], pants);
+addBox(leftLeg, [0.38, 0.2, 0.5], [0, -0.78, -0.06], shoes);
 
 const rightLeg = new THREE.Group();
-rightLeg.position.set(0.17, 0.65, 0);
-playerModel.add(rightLeg);
+rightLeg.position.set(0.24, 1.05, 0);
+player.add(rightLeg);
+addBox(rightLeg, [0.34, 0.78, 0.36], [0, -0.35, 0], pants);
+addBox(rightLeg, [0.38, 0.2, 0.5], [0, -0.78, -0.06], shoes);
 
-addCharacterPart(
-  new THREE.CapsuleGeometry(0.13, 0.48, 3, 6),
-  "#25334c",
-  0,
-  -0.28,
-  0,
-  rightLeg
-);
+// ---------- 建築パーツ ----------
+const BUILD_SIZE = 4;
+const buildPieces = [];
+const buildMaterials = {
+  wall: makeMaterial(0x55b9e9),
+  floor: makeMaterial(0xd4b17b),
+  ramp: makeMaterial(0x62c88a)
+};
 
-// ==========================================
-// 5. 三人称カメラ
-// ==========================================
-let cameraYaw = 0;
-let cameraPitch = 0.25;
-
-const CAMERA_DISTANCE = 7;
-const CAMERA_SENSITIVITY = 0.003;
-
-const cameraTarget = new THREE.Vector3();
-const cameraOffset = new THREE.Vector3();
-
-function updateCamera() {
-  cameraTarget.set(
-    player.position.x,
-    player.position.y + 1.35,
-    player.position.z
-  );
-
-  const horizontalDistance =
-    CAMERA_DISTANCE * Math.cos(cameraPitch);
-
-  cameraOffset.set(
-    -Math.sin(cameraYaw) * horizontalDistance,
-    Math.sin(cameraPitch) * CAMERA_DISTANCE,
-    Math.cos(cameraYaw) * horizontalDistance
-  );
-
-  camera.position.copy(cameraTarget).add(cameraOffset);
-  camera.lookAt(cameraTarget);
-}
-
-updateCamera();
-
-// ==========================================
-// 6. マウス視点操作
-// ==========================================
-let pointerLocked = false;
-
-renderer.domElement.addEventListener("click", () => {
-  if (!pointerLocked) {
-    renderer.domElement.requestPointerLock();
-  }
-});
-
-document.addEventListener("pointerlockchange", () => {
-  pointerLocked =
-    document.pointerLockElement === renderer.domElement;
-
-  if (pointerLocked) {
-    message.textContent =
-      "WASD：移動 / Space：ジャンプ / マウス：視点操作";
-  } else {
-    message.textContent =
-      "ゲーム画面をクリックすると操作を再開できます";
-  }
-});
-
-document.addEventListener("mousemove", (event) => {
-  if (!pointerLocked) return;
-
-  cameraYaw -= event.movementX * CAMERA_SENSITIVITY;
-  cameraPitch += event.movementY * CAMERA_SENSITIVITY;
-
-  cameraPitch = THREE.MathUtils.clamp(
-    cameraPitch,
-    -0.15,
-    0.8
-  );
-});
-
-// ==========================================
-// 7. 建築システム
-// ==========================================
-const SIZE = 2;
-const BUILD_LIMIT = 45;
-
-const placedObjects = [];
-
-let selectedPiece = "wall";
-let buildRotation = 0;
-let buildMode = true;
-let preview = null;
-
-const materials = {
+const previewMaterials = {
   wall: new THREE.MeshStandardMaterial({
-    color: "#b87945",
-    roughness: 0.85
+    color: 0x5dd8ff,
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false
   }),
   floor: new THREE.MeshStandardMaterial({
-    color: "#d7a66b",
-    roughness: 0.9
+    color: 0xffd078,
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false
   }),
   ramp: new THREE.MeshStandardMaterial({
-    color: "#bd8a55",
-    roughness: 0.9
+    color: 0x72ffad,
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false
   })
 };
 
-const previewMaterial = new THREE.MeshStandardMaterial({
-  color: "#65ffb0",
-  transparent: true,
-  opacity: 0.45,
-  depthWrite: false
-});
+let selectedPiece = "wall";
+let rotationSteps = 0;
+let preview;
 
-function createPiece(type, material) {
+function createPiece(type, material, isPreview = false) {
   const group = new THREE.Group();
+  const edgeMaterial = isPreview
+    ? material
+    : makeMaterial(0x293d4a);
 
   if (type === "wall") {
-    const wall = new THREE.Mesh(
-      new THREE.BoxGeometry(SIZE, 3, 0.18),
-      material
-    );
-
-    wall.position.y = 1.5;
-    group.add(wall);
+    addBox(group, [BUILD_SIZE, 3, 0.22], [0, 1.5, 0], material);
+    if (!isPreview) {
+      addBox(group, [BUILD_SIZE, 0.12, 0.27], [0, 0.08, 0], edgeMaterial);
+      for (let x = -1.5; x <= 1.5; x += 1) {
+        addBox(group, [0.055, 2.8, 0.24], [x, 1.5, 0], edgeMaterial);
+      }
+    }
   }
 
   if (type === "floor") {
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(SIZE, 0.18, SIZE),
-      material
-    );
-
-    floor.position.y = 0.1;
-    group.add(floor);
+    addBox(group, [BUILD_SIZE, 0.18, BUILD_SIZE], [0, 0, 0], material);
+    if (!isPreview) {
+      addBox(group, [BUILD_SIZE, 0.09, 0.09], [0, -0.08, -1.92], edgeMaterial);
+      addBox(group, [BUILD_SIZE, 0.09, 0.09], [0, -0.08, 1.92], edgeMaterial);
+      addBox(group, [0.09, 0.09, BUILD_SIZE], [-1.92, -0.08, 0], edgeMaterial);
+      addBox(group, [0.09, 0.09, BUILD_SIZE], [1.92, -0.08, 0], edgeMaterial);
+    }
   }
 
   if (type === "ramp") {
-    // 傾斜した板
-    const slope = new THREE.Mesh(
-      new THREE.BoxGeometry(SIZE, 0.15, 2.8),
+    // 傾斜した階段の土台
+    const rampBase = new THREE.Mesh(
+      new THREE.BoxGeometry(BUILD_SIZE, 0.18, BUILD_SIZE),
       material
     );
+    rampBase.position.set(0, 0.75, 0);
+    rampBase.rotation.x = -Math.PI / 8;
+    rampBase.castShadow = true;
+    rampBase.receiveShadow = true;
+    group.add(rampBase);
 
-    slope.position.set(0, 0.75, 0);
-    slope.rotation.x = -Math.PI / 6;
-    group.add(slope);
-
-    // 階段の踏み板
-    for (let i = 0; i < 5; i++) {
-      const step = new THREE.Mesh(
-        new THREE.BoxGeometry(SIZE, 0.12, 0.45),
-        material
-      );
-
-      step.position.set(
-        0,
-        0.18 + i * 0.25,
-        0.9 - i * 0.45
-      );
-
-      group.add(step);
+    if (!isPreview) {
+      for (let i = 0; i < 5; i++) {
+        const step = addBox(
+          group,
+          [BUILD_SIZE, 0.13, 0.65],
+          [0, 0.2 + i * 0.29, 1.45 - i * 0.72],
+          edgeMaterial
+        );
+      }
     }
   }
-
-  group.rotation.y = buildRotation;
-  group.userData.pieceType = type;
-
-  group.traverse((object) => {
-    if (object.isMesh) {
-      object.castShadow = true;
-      object.receiveShadow = true;
-    }
-  });
 
   return group;
 }
 
-function pieceName(type) {
-  return {
-    wall: "壁",
-    floor: "床",
-    ramp: "階段"
-  }[type];
-}
-
-function disposePreview() {
-  if (!preview) return;
-
-  scene.remove(preview);
-
-  preview.traverse((object) => {
-    if (object.geometry) object.geometry.dispose();
-  });
-
-  preview = null;
-}
-
-function updatePreview() {
-  disposePreview();
-
-  if (!buildMode) return;
-
-  preview = createPiece(selectedPiece, previewMaterial);
-
-  preview.traverse((object) => {
-    if (object.isMesh) {
-      object.castShadow = false;
-      object.receiveShadow = false;
-    }
-  });
-
+function makePreview() {
+  if (preview) scene.remove(preview);
+  preview = createPiece(selectedPiece, previewMaterials[selectedPiece], true);
   scene.add(preview);
 }
 
-function selectPiece(type) {
-  selectedPiece = type;
-  buildRotation = 0;
+makePreview();
 
-  document.querySelectorAll(".build-button").forEach((button) => {
-    button.classList.toggle(
-      "active",
-      button.dataset.piece === type
-    );
-  });
-
-  updatePreview();
-
-  message.textContent =
-    `${pieceName(type)}を選択中：照準を合わせてクリック`;
+// ---------- 建築位置 ----------
+function snap(value) {
+  return Math.round(value / BUILD_SIZE) * BUILD_SIZE;
 }
 
-// ==========================================
-// 8. 建築位置を計算
-// ==========================================
-const raycaster = new THREE.Raycaster();
-const centerPointer = new THREE.Vector2(0, 0);
-const groundPlane = new THREE.Plane(
-  new THREE.Vector3(0, 1, 0),
-  0
-);
+function updatePreview() {
+  // キャラクターの前方に設置位置を作るため、照準が地面に
+  // 当たらなくても建築できる。
+  const forwardX = -Math.sin(player.rotation.y);
+  const forwardZ = -Math.cos(player.rotation.y);
+  const distance = 4.5;
 
-const hitPoint = new THREE.Vector3();
-const buildPosition = new THREE.Vector3();
+  const x = snap(player.position.x + forwardX * distance);
+  const z = snap(player.position.z + forwardZ * distance);
 
-function getBuildPosition() {
-  raycaster.setFromCamera(centerPointer, camera);
+  preview.position.set(x, 0, z);
+  preview.rotation.set(0, rotationSteps * Math.PI / 2, 0);
 
-  if (!raycaster.ray.intersectPlane(groundPlane, hitPoint)) {
-    return false;
-  }
-
-  buildPosition.set(
-    Math.round(hitPoint.x / SIZE) * SIZE,
-    0,
-    Math.round(hitPoint.z / SIZE) * SIZE
-  );
-
-  return (
-    Math.abs(buildPosition.x) <= BUILD_LIMIT &&
-    Math.abs(buildPosition.z) <= BUILD_LIMIT
-  );
+  // 建築プレビューがプレイヤーに重なっていないか目で確認できる
+  preview.visible = true;
 }
 
 function placePiece() {
-  if (!buildMode) return;
-
-  if (!getBuildPosition()) {
-    message.textContent =
-      "建築できる場所に照準を合わせてください";
-    return;
-  }
-
-  const piece = createPiece(
-    selectedPiece,
-    materials[selectedPiece]
-  );
-
-  piece.position.copy(buildPosition);
-  piece.rotation.y = buildRotation;
-
+  const piece = createPiece(selectedPiece, buildMaterials[selectedPiece]);
+  piece.position.copy(preview.position);
+  piece.rotation.copy(preview.rotation);
   scene.add(piece);
-  placedObjects.push(piece);
-
-  message.textContent =
-    `${pieceName(selectedPiece)}を設置しました（${placedObjects.length}個）`;
+  buildPieces.push(piece);
 }
 
-// ==========================================
-// 9. キーボード
-// ==========================================
-const keys = Object.create(null);
-
-window.addEventListener("keydown", (event) => {
-  if (
-    ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(
-      event.code
-    )
-  ) {
-    event.preventDefault();
-  }
-
-  keys[event.code] = true;
-
-  if (event.repeat) return;
-
-  if (event.code === "Digit1") selectPiece("wall");
-  if (event.code === "Digit2") selectPiece("floor");
-  if (event.code === "Digit3") selectPiece("ramp");
-
-  if (event.code === "KeyQ") {
-    buildRotation += Math.PI / 2;
-
-    if (preview) {
-      preview.rotation.y = buildRotation;
-    }
-
-    message.textContent = "建築物を90度回転しました";
-  }
-
-  if (
-    event.code === "Space" &&
-    player.onGround
-  ) {
-    player.velocityY = player.jumpSpeed;
-    player.onGround = false;
-  }
+// ---------- 操作UI ----------
+const hud = document.createElement("div");
+hud.id = "game-hud";
+hud.innerHTML = `
+  <div class="game-title">BUILD ZONE <span>CREATIVE</span></div>
+  <div class="game-help">
+    <b>W A S D</b> 移動　 <b>右ドラッグ</b> 視点操作<br>
+    <b>1</b> 壁　 <b>2</b> 床　 <b>3</b> 階段<br>
+    <b>Q / E</b> 回転　 <b>左クリック</b> 建築
+  </div>
+  <div class="build-toolbar">
+    <button data-piece="wall">1　壁</button>
+    <button data-piece="floor">2　床</button>
+    <button data-piece="ramp">3　階段</button>
+    <button id="rotate-build">回転 Q/E</button>
+  </div>
+  <div class="crosshair">+</div>
+  <div class="build-status">建築モード</div>
+`;
+Object.assign(hud.style, {
+  position: "fixed",
+  inset: "0",
+  zIndex: "10",
+  pointerEvents: "none",
+  color: "white",
+  fontFamily: "Arial, sans-serif",
+  textShadow: "0 2px 4px #102030"
 });
+document.body.appendChild(hud);
 
-window.addEventListener("keyup", (event) => {
-  keys[event.code] = false;
-});
-
-window.addEventListener("blur", () => {
-  for (const key in keys) {
-    keys[key] = false;
+const hudStyle = document.createElement("style");
+hudStyle.textContent = `
+  #game-hud .game-title {
+    position: absolute; top: 18px; left: 22px;
+    font-size: 22px; font-weight: 900; letter-spacing: 2px;
   }
-});
+  #game-hud .game-title span {
+    color: #62e5ff; font-size: 11px; margin-left: 8px;
+  }
+  #game-hud .game-help {
+    position: absolute; top: 60px; left: 22px;
+    line-height: 1.8; font-size: 13px;
+    background: #101c2bbd; padding: 12px 16px;
+    border: 1px solid #ffffff44; border-radius: 10px;
+  }
+  #game-hud .build-toolbar {
+    position: absolute; bottom: 25px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px; pointer-events: auto;
+  }
+  #game-hud button {
+    border: 1px solid #ffffff88; border-radius: 9px;
+    background: #172537e8; color: white;
+    padding: 12px 16px; font-size: 14px; font-weight: bold;
+    cursor: pointer;
+  }
+  #game-hud button.active {
+    background: #087eae; border-color: #7ce7ff;
+    box-shadow: 0 0 0 2px #7ce7ff55;
+  }
+  #game-hud .crosshair {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px; font-weight: bold; color: white;
+  }
+  #game-hud .build-status {
+    position: absolute; right: 22px; top: 22px;
+    background: #101c2bcc; padding: 10px 14px;
+    border-radius: 8px; font-weight: bold;
+  }
+`;
+document.head.appendChild(hudStyle);
 
-// ==========================================
-// 10. 建築メニュー
-// ==========================================
-document.querySelectorAll(".build-button").forEach((button) => {
+function refreshToolbar() {
+  hud.querySelectorAll("[data-piece]").forEach(button => {
+    button.classList.toggle(
+      "active",
+      button.dataset.piece === selectedPiece
+    );
+  });
+  hud.querySelector(".build-status").textContent =
+    "建築：" + ({ wall: "壁", floor: "床", ramp: "階段" }[selectedPiece]);
+}
+
+hud.querySelectorAll("[data-piece]").forEach(button => {
   button.addEventListener("click", () => {
-    selectPiece(button.dataset.piece);
+    selectedPiece = button.dataset.piece;
+    makePreview();
+    refreshToolbar();
   });
 });
 
-modeButton.addEventListener("click", () => {
-  buildMode = !buildMode;
-
-  modeButton.textContent = buildMode
-    ? "建築モード：ON"
-    : "建築モード：OFF";
-
-  modeButton.style.background = buildMode
-    ? "#176e52"
-    : "#596273";
-
-  updatePreview();
-
-  message.textContent = buildMode
-    ? "建築モードを有効にしました"
-    : "建築モードを無効にしました";
+hud.querySelector("#rotate-build").addEventListener("click", () => {
+  rotationSteps = (rotationSteps + 1) % 4;
 });
 
-// ==========================================
-// 11. 移動と簡易衝突判定
-// ==========================================
-const forwardVector = new THREE.Vector3();
-const rightVector = new THREE.Vector3();
-const moveVector = new THREE.Vector3();
+refreshToolbar();
 
-function canMoveTo(x, z) {
-  for (const object of placedObjects) {
-    if (object.userData.pieceType !== "wall") continue;
+// ---------- キー入力 ----------
+const keys = {};
+let looking = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+let cameraYaw = 0;
+let cameraPitch = 0.22;
 
-    const dx = x - object.position.x;
-    const dz = z - object.position.z;
+window.addEventListener("keydown", event => {
+  keys[event.code] = true;
 
-    // 壁の向きを考慮したローカル座標
-    const cos = Math.cos(object.rotation.y);
-    const sin = Math.sin(object.rotation.y);
+  if (event.code === "Digit1") selectedPiece = "wall";
+  if (event.code === "Digit2") selectedPiece = "floor";
+  if (event.code === "Digit3") selectedPiece = "ramp";
 
-    const localX = dx * cos - dz * sin;
-    const localZ = dx * sin + dz * cos;
-
-    if (
-      Math.abs(localX) < SIZE / 2 + player.radius &&
-      Math.abs(localZ) < 0.18 + player.radius
-    ) {
-      return false;
-    }
+  if (event.code === "KeyQ" || event.code === "KeyE") {
+    rotationSteps = (rotationSteps + 1) % 4;
   }
 
-  return true;
-}
-
-function updatePlayer(delta) {
-  if (!pointerLocked) return;
-
-  const forwardInput =
-    Number(keys.KeyW) - Number(keys.KeyS);
-
-  const rightInput =
-    Number(keys.KeyD) - Number(keys.KeyA);
-
-  forwardVector.set(
-    Math.sin(cameraYaw),
-    0,
-    -Math.cos(cameraYaw)
-  );
-
-  rightVector.set(
-    Math.cos(cameraYaw),
-    0,
-    Math.sin(cameraYaw)
-  );
-
-  moveVector.set(0, 0, 0);
-  moveVector.addScaledVector(forwardVector, forwardInput);
-  moveVector.addScaledVector(rightVector, rightInput);
-
-  const moving = moveVector.lengthSq() > 0;
-
-  if (moving) {
-    moveVector.normalize();
-
-    const nextX =
-      player.position.x + moveVector.x * player.speed * delta;
-
-    const nextZ =
-      player.position.z + moveVector.z * player.speed * delta;
-
-    if (canMoveTo(nextX, player.position.z)) {
-      player.position.x = nextX;
-    }
-
-    if (canMoveTo(player.position.x, nextZ)) {
-      player.position.z = nextZ;
-    }
-
-    player.yaw = Math.atan2(moveVector.x, moveVector.z);
-
-    leftArm.rotation.x = Math.sin(performance.now() * 0.012) * 0.6;
-    rightArm.rotation.x = -leftArm.rotation.x;
-    leftLeg.rotation.x = -leftArm.rotation.x;
-    rightLeg.rotation.x = leftArm.rotation.x;
-  } else {
-    leftArm.rotation.x = THREE.MathUtils.damp(
-      leftArm.rotation.x, 0, 8, delta
-    );
-    rightArm.rotation.x = THREE.MathUtils.damp(
-      rightArm.rotation.x, 0, 8, delta
-    );
-    leftLeg.rotation.x = THREE.MathUtils.damp(
-      leftLeg.rotation.x, 0, 8, delta
-    );
-    rightLeg.rotation.x = THREE.MathUtils.damp(
-      rightLeg.rotation.x, 0, 8, delta
-    );
+  if (["Space", "ArrowUp", "ArrowDown"].includes(event.code)) {
+    event.preventDefault();
   }
 
-  // ジャンプと重力
-  player.velocityY -= 20 * delta;
-  player.position.y += player.velocityY * delta;
+  makePreview();
+  refreshToolbar();
+});
 
-  if (player.position.y <= 0) {
-    player.position.y = 0;
-    player.velocityY = 0;
-    player.onGround = true;
+window.addEventListener("keyup", event => {
+  keys[event.code] = false;
+});
+
+renderer.domElement.addEventListener("contextmenu", event => {
+  event.preventDefault();
+});
+
+renderer.domElement.addEventListener("pointerdown", event => {
+  if (event.button === 2) {
+    looking = true;
+    lastMouseX = event.clientX;
+    lastMouseY = event.clientY;
   }
+});
 
-  player.position.x = THREE.MathUtils.clamp(
-    player.position.x, -BUILD_LIMIT, BUILD_LIMIT
-  );
+window.addEventListener("pointerup", event => {
+  if (event.button === 2) looking = false;
+});
 
-  player.position.z = THREE.MathUtils.clamp(
-    player.position.z, -BUILD_LIMIT, BUILD_LIMIT
-  );
+window.addEventListener("pointermove", event => {
+  if (!looking) return;
 
-  playerModel.position.copy(player.position);
-  playerModel.rotation.y = player.yaw;
-}
+  const dx = event.clientX - lastMouseX;
+  const dy = event.clientY - lastMouseY;
+  lastMouseX = event.clientX;
+  lastMouseY = event.clientY;
 
-// ==========================================
-// 12. 画面サイズ変更
-// ==========================================
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-
-  renderer.setSize(
-    window.innerWidth,
-    window.innerHeight
+  cameraYaw -= dx * 0.006;
+  cameraPitch = THREE.MathUtils.clamp(
+    cameraPitch + dy * 0.003,
+    -0.05,
+    0.85
   );
 });
 
-// ==========================================
-// 13. メインループ
-// ==========================================
+renderer.domElement.addEventListener("click", event => {
+  if (event.button !== 0) return;
+  placePiece();
+});
+
+// ---------- カメラと移動 ----------
 const clock = new THREE.Clock();
+let jumpVelocity = 0;
+let playerY = 0;
+let isGrounded = true;
 
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = Math.min(clock.getDelta(), 0.05);
+  const dt = Math.min(clock.getDelta(), 0.04);
 
-  updatePlayer(delta);
-  updateCamera();
+  // WASDはカメラの向きに合わせて移動
+  const forward = new THREE.Vector3(
+    -Math.sin(cameraYaw), 0, -Math.cos(cameraYaw)
+  );
+  const right = new THREE.Vector3(
+    Math.cos(cameraYaw), 0, -Math.sin(cameraYaw)
+  );
 
-  if (preview && getBuildPosition()) {
-    preview.position.copy(buildPosition);
-    preview.rotation.y = buildRotation;
+  const move = new THREE.Vector3();
+  if (keys.KeyW) move.add(forward);
+  if (keys.KeyS) move.sub(forward);
+  if (keys.KeyD) move.add(right);
+  if (keys.KeyA) move.sub(right);
+
+  if (move.lengthSq() > 0) {
+    move.normalize();
+    player.position.addScaledVector(move, 7 * dt);
+    player.rotation.y = Math.atan2(-move.x, -move.z);
+
+    // 歩行アニメーション
+    const swing = Math.sin(performance.now() * 0.012) * 0.48;
+    leftLeg.rotation.x = swing;
+    rightLeg.rotation.x = -swing;
+    leftArm.rotation.x = -swing * 0.7;
+    rightArm.rotation.x = swing * 0.7;
+  } else {
+    leftLeg.rotation.x = THREE.MathUtils.damp(
+      leftLeg.rotation.x, 0, 8, dt
+    );
+    rightLeg.rotation.x = THREE.MathUtils.damp(
+      rightLeg.rotation.x, 0, 8, dt
+    );
+    leftArm.rotation.x = THREE.MathUtils.damp(
+      leftArm.rotation.x, 0, 8, dt
+    );
+    rightArm.rotation.x = THREE.MathUtils.damp(
+      rightArm.rotation.x, 0, 8, dt
+    );
   }
 
+  // ジャンプ
+  if (keys.Space && isGrounded) {
+    jumpVelocity = 8;
+    isGrounded = false;
+  }
+  jumpVelocity -= 20 * dt;
+  playerY += jumpVelocity * dt;
+  if (playerY <= 0) {
+    playerY = 0;
+    jumpVelocity = 0;
+    isGrounded = true;
+  }
+  player.position.y = playerY;
+
+  // 三人称カメラ
+  const target = player.position.clone();
+  target.y += 1.8;
+
+  const distance = 8;
+  const horizontal = Math.cos(cameraPitch) * distance;
+  camera.position.set(
+    target.x + Math.sin(cameraYaw) * horizontal,
+    target.y + 2.2 + Math.sin(cameraPitch) * distance,
+    target.z + Math.cos(cameraYaw) * horizontal
+  );
+  camera.lookAt(target);
+
+  updatePreview();
   renderer.render(scene, camera);
 }
 
-updatePreview();
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
 animate();
